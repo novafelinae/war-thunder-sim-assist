@@ -28,18 +28,22 @@ görünmez.
 Resmî olmayan bir hayran aracıdır; Gaijin Entertainment ile bağlantılı değildir.
 """
 
+import faulthandler
 import json
 import os
+import subprocess
+import sys
 import threading
 import time
 import tkinter as tk
+import traceback
 import urllib.request
 from tkinter import messagebox
 
 SURUM = "1.0.0"
 UYGULAMA_ADI = "War Thunder Sim Assist"
 MUTEX_ADI = "WarThunderSimAssist_SingleInstance"   # installer.iss içindeki AppMutex ile aynı
-TELEMETRI_TABAN = "http://localhost:8111"
+TELEMETRI_TABAN = "http://127.0.0.1:8111"   # "localhost" bazı PC'lerde yavaş çözümlenir
 
 
 def veri_klasoru() -> str:
@@ -291,8 +295,10 @@ class SimAssist:
 
     def veri_klasorunu_ac(self):
         try:
-            if hasattr(os, "startfile"):
-                os.startfile(VERI_KLASORU)
+            if os.name == "nt":
+                explorer = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "explorer.exe")
+                subprocess.Popen([explorer, os.path.normpath(VERI_KLASORU)],
+                                 creationflags=0x08000000)   # CREATE_NO_WINDOW
             else:
                 messagebox.showinfo("Veri klasörü", VERI_KLASORU, parent=self.root)
         except Exception as e:
@@ -473,7 +479,28 @@ class SimAssist:
             x += genislik
 
     # ------------------------------------------------------- Döngü
+    _son_tick = 0.0
+    _tick_sayac = 0
+    _gecikme_kayit_sayisi = 0
+
+    def _performans_kaydi(self, bosluk):
+        """Sorun giderme: arayüz döngüsü beklenenden uzun süre çalışmadıysa
+        veri klasörüne not düşer (en fazla 50 kayıt)."""
+        try:
+            with open(os.path.join(VERI_KLASORU, "wt_sim_assist_performans.txt"),
+                      "a", encoding="utf-8") as f:
+                f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')}  arayüz {bosluk:.1f} sn "
+                        f"çalışamadı (beklenen: 0,1 sn)\n")
+        except Exception:
+            pass
+
     def _tick(self):
+        simdi = time.monotonic()
+        if self._son_tick and simdi - self._son_tick > 1.0 and self._gecikme_kayit_sayisi < 50:
+            self._gecikme_kayit_sayisi += 1
+            self._performans_kaydi(simdi - self._son_tick)
+        self._son_tick = simdi
+
         gecen = self.gecen()
         aralik_sn = int(self.ayar["aralik_dk"]) * 60
 
@@ -505,11 +532,13 @@ class SimAssist:
 
         self._otomatik_kontrol()
 
-        # Oyun penceresi öne çıkarsa tekrar en üste al
-        try:
-            self.root.attributes("-topmost", True)
-        except tk.TclError:
-            pass
+        # Oyun penceresi öne çıkarsa tekrar en üste al (saniyede bir yeterli)
+        self._tick_sayac = (self._tick_sayac + 1) % 10
+        if self._tick_sayac == 0:
+            try:
+                self.root.attributes("-topmost", True)
+            except tk.TclError:
+                pass
 
         self.root.after(100, self._tick)
 
@@ -746,13 +775,14 @@ class SimAssist:
         self.root.destroy()
 
 
-def hata_kaydet(metin):
-    """Açılışta/çalışırken beklenmeyen hata olursa bir dosyaya yazar."""
+def hata_kaydet(metin, ekle=False):
+    """Açılışta/çalışırken beklenmeyen hata olursa bir dosyaya yazar.
+    ekle=True: dosyanın sonuna ekler (çalışırken oluşan hatalar için)."""
     for klasor in (VERI_KLASORU, os.path.expanduser("~")):
         yol = os.path.join(klasor, "wt_sim_assist_hata.txt")
         try:
-            with open(yol, "w", encoding="utf-8") as f:
-                f.write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n" + metin)
+            with open(yol, "a" if ekle else "w", encoding="utf-8") as f:
+                f.write(time.strftime("%Y-%m-%d %H:%M:%S") + "\n" + metin + "\n")
             return yol
         except Exception:
             continue
@@ -760,6 +790,59 @@ def hata_kaydet(metin):
 
 
 _MUTEX_TUTAMAC = None   # süreç boyunca açık kalmalı
+_CRASH_DOSYASI = None   # faulthandler için açık kalmalı
+
+
+def oncelik_ayarla():
+    """Windows'ta süreç önceliğini 'Normal üstü' yapar ve güç kısıtlamasını
+    (EcoQoS) kapatır. Program neredeyse hiç işlemci kullanmaz; ama oyun işlemciyi
+    sonuna kadar kullandığında normal öncelikli bir pencere birkaç saniyede
+    bir çalışabilir (sayaç 00:00, 00:03, 00:06 diye atlar)."""
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.GetCurrentProcess.restype = ctypes.c_void_p
+        islem = kernel32.GetCurrentProcess()
+
+        kernel32.SetPriorityClass.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+        kernel32.SetPriorityClass(islem, 0x00008000)   # ABOVE_NORMAL_PRIORITY_CLASS
+
+        class GucKisitlamaDurumu(ctypes.Structure):
+            _fields_ = [("Version", ctypes.c_ulong),
+                        ("ControlMask", ctypes.c_ulong),
+                        ("StateMask", ctypes.c_ulong)]
+
+        # 0x1: yürütme hızı kısıtlaması, 0x4: zamanlayıcı çözünürlüğü kısıtlaması.
+        # StateMask=0 -> ikisi de kapalı (kısıtlama yok).
+        durum = GucKisitlamaDurumu(1, 0x1 | 0x4, 0)
+        kernel32.SetProcessInformation.argtypes = [ctypes.c_void_p, ctypes.c_int,
+                                                   ctypes.c_void_p, ctypes.c_ulong]
+        kernel32.SetProcessInformation(islem, 4, ctypes.byref(durum),   # ProcessPowerThrottling
+                                       ctypes.sizeof(durum))
+    except Exception:
+        pass   # eski Windows sürümlerinde bu işlev yok; sorun değil
+
+
+def calisma_ortamini_hazirla():
+    """Pencereli (konsolsuz) exe'de sys.stdout/stderr None olur; hata yazan
+    kütüphaneler çökmesin diye boş akışa yönlendirir ve olası ağır çökmeleri
+    (Windows hata kodları) veri klasöründeki dosyaya kaydeder."""
+    global _CRASH_DOSYASI
+    oncelik_ayarla()
+    for ad in ("stdout", "stderr"):
+        if getattr(sys, ad, None) is None:
+            try:
+                setattr(sys, ad, open(os.devnull, "w"))
+            except Exception:
+                pass
+    try:
+        _CRASH_DOSYASI = open(os.path.join(VERI_KLASORU, "wt_sim_assist_crash.txt"),
+                              "a", encoding="utf-8")
+        faulthandler.enable(file=_CRASH_DOSYASI)
+    except Exception:
+        pass
 
 
 def tek_kopya_kilidi() -> bool:
@@ -794,12 +877,18 @@ if __name__ == "__main__":
         except Exception:
             pass
         raise SystemExit(0)
+    calisma_ortamini_hazirla()
     try:
         kok = tk.Tk()
+
+        def callback_hatasi(tur, deger, iz):
+            # Menü/zamanlayıcı gibi arayüz olaylarındaki hatalar sessizce kaybolmasın
+            hata_kaydet("".join(traceback.format_exception(tur, deger, iz)), ekle=True)
+
+        kok.report_callback_exception = callback_hatasi
         SimAssist(kok)
         kok.mainloop()
     except Exception:
-        import traceback
         metin = traceback.format_exc()
         yol = hata_kaydet(metin)
         try:
