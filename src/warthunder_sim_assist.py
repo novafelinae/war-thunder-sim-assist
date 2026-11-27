@@ -15,7 +15,9 @@ Simülatör maçları için periyot kronometresi.
 - Pencere kenarlıksızdır ve varsayılan olarak arka planı şeffaftır.
   Rakamlara basılı tutup ekranda istediğin yere sürükle; konum hatırlanır.
 - Sağ tık menüsü: Başlat/Duraklat, Sıfırla, Periyot +1/-1, Otomatik başlat,
-  Boyut, Periyot süresi, Genel şeffaflık, Arka plan, Veri klasörü, Kapat.
+  Boyut, Periyot süresi, Genel şeffaflık, Arka plan, Dil / Language,
+  Veri klasörü, Kapat.
+- Arayüz Türkçe ve İngilizce desteklenir (kurulumda seçilir, menüden değişir).
 - Çift tık: manuel başlat / duraklat (telemetri çalışmazsa yedek yol).
 
 Kaynaktan çalıştırma:  python warthunder_sim_assist.py   (Python 3.8+, ek paket yok)
@@ -60,7 +62,8 @@ def veri_klasoru() -> str:
 VERI_KLASORU = veri_klasoru()
 AYAR_DOSYASI = os.path.join(VERI_KLASORU, "ayarlar.json")
 VARSAYILAN_AYAR = {"x": 40, "y": 40, "aralik_dk": 15, "oto": True,
-                   "alpha": 0.9, "boyut": "Orta", "arka_plan": "Şeffaf"}
+                   "alpha": 0.9, "boyut": "Orta", "arka_plan": "Şeffaf",
+                   "dil": "", "kurulum_dili": ""}
 
 OLUM_BEKLEME_SN = 1.0       # araç verisi bu kadar süre yoksa öldük say
 MAC_BITTI_BEKLEME_SN = 10   # harita/oyun verisi bu kadar süre yoksa maç bitti say
@@ -142,6 +145,8 @@ def ayar_yukle() -> dict:
         ayar["boyut"] = VARSAYILAN_AYAR["boyut"]
     if ayar.get("arka_plan") not in ("Şeffaf", "Koyu"):
         ayar["arka_plan"] = VARSAYILAN_AYAR["arka_plan"]
+    if ayar.get("dil") not in ("tr", "en", ""):
+        ayar["dil"] = ""
     return ayar
 
 
@@ -151,6 +156,162 @@ def ayar_kaydet(ayar: dict):
             json.dump(ayar, f)
     except Exception:
         pass
+
+
+# ======================================================================
+# Dil desteği (Türkçe / English)
+# ======================================================================
+DIL = "en"   # etkin dil: "tr" veya "en" (başlangıçta dili_cozumle() ayarlar)
+
+METINLER = {
+    "tr": {
+        "menu.start_pause": "Başlat / Duraklat",
+        "menu.reset": "Sıfırla",
+        "menu.period_plus": "Periyot +1",
+        "menu.period_minus": "Periyot -1",
+        "menu.auto": "Doğuşta otomatik başlat",
+        "menu.size": "Boyut",
+        "size.Küçük": "Küçük", "size.Orta": "Orta", "size.Büyük": "Büyük",
+        "size.Çok büyük": "Çok büyük",
+        "menu.period_length": "Periyot süresi",
+        "menu.minutes": "{dk} dakika",
+        "menu.opacity": "Genel şeffaflık",
+        "menu.background": "Arka plan",
+        "bg.Şeffaf": "Şeffaf", "bg.Koyu": "Koyu",
+        "menu.language": "Dil / Language",
+        "menu.data_folder": "Veri klasörünü aç",
+        "menu.save_telemetry": "Telemetri bilgisini kaydet (sorun giderme)",
+        "menu.about": "Hakkında",
+        "menu.quit": "Kapat",
+        "dlg.data_folder.title": "Veri klasörü",
+        "dlg.data_folder.fail": "Açılamadı: {e}",
+        "dlg.about.title": "Hakkında",
+        "dlg.about.body": (
+            "{name} v{version}\n\n"
+            "Simülatör maçları için periyot kronometresi.\n"
+            "Yalnızca oyunun yerel telemetri arayüzünü (localhost:8111) okur; "
+            "oyun belleğine veya dosyalarına dokunmaz ve hiçbir veri göndermez.\n\n"
+            "Resmî olmayan bir hayran aracıdır; Gaijin Entertainment ile "
+            "bağlantılı değildir.\n\n"
+            "Ayar ve günlük klasörü:\n{folder}"),
+        "dlg.telemetry.title": "Telemetri",
+        "dlg.telemetry.saved": "Kaydedildi:\n{yol}",
+        "dlg.telemetry.fail": "Kaydedilemedi: {e}",
+        "dlg.running.body": (
+            "Program zaten çalışıyor.\n\nPencere oyunun veya başka bir pencerenin "
+            "arkasında ya da ekranın kenarında olabilir. Görünmüyorsa Görev "
+            "Yöneticisi'nden kapatıp yeniden açın."),
+        "dlg.crash.title": "{name} açılamadı",
+        "dlg.crash.body": "Program bir hata nedeniyle açılamadı.\n\n",
+        "dlg.crash.file": "Hata ayrıntısı şu dosyaya yazıldı:\n{yol}\n\n",
+    },
+    "en": {
+        "menu.start_pause": "Start / Pause",
+        "menu.reset": "Reset",
+        "menu.period_plus": "Period +1",
+        "menu.period_minus": "Period -1",
+        "menu.auto": "Start automatically on spawn",
+        "menu.size": "Size",
+        "size.Küçük": "Small", "size.Orta": "Medium", "size.Büyük": "Large",
+        "size.Çok büyük": "Extra large",
+        "menu.period_length": "Period length",
+        "menu.minutes": "{dk} minutes",
+        "menu.opacity": "Overall opacity",
+        "menu.background": "Background",
+        "bg.Şeffaf": "Transparent", "bg.Koyu": "Dark",
+        "menu.language": "Dil / Language",
+        "menu.data_folder": "Open data folder",
+        "menu.save_telemetry": "Save telemetry info (troubleshooting)",
+        "menu.about": "About",
+        "menu.quit": "Quit",
+        "dlg.data_folder.title": "Data folder",
+        "dlg.data_folder.fail": "Could not open: {e}",
+        "dlg.about.title": "About",
+        "dlg.about.body": (
+            "{name} v{version}\n\n"
+            "Period timer for War Thunder Simulator battles.\n"
+            "It only reads the game's local telemetry interface (localhost:8111); "
+            "it does not touch the game's memory or files and sends no data anywhere.\n\n"
+            "This is an unofficial fan tool and is not affiliated with "
+            "Gaijin Entertainment.\n\n"
+            "Settings and log folder:\n{folder}"),
+        "dlg.telemetry.title": "Telemetry",
+        "dlg.telemetry.saved": "Saved:\n{yol}",
+        "dlg.telemetry.fail": "Could not save: {e}",
+        "dlg.running.body": (
+            "The program is already running.\n\nThe window may be behind the game or "
+            "another window, or at the edge of the screen. If you cannot see it, close "
+            "it from Task Manager and start the program again."),
+        "dlg.crash.title": "{name} could not start",
+        "dlg.crash.body": "The program could not start because of an error.\n\n",
+        "dlg.crash.file": "Error details were written to:\n{yol}\n\n",
+    },
+}
+
+
+def t(anahtar, **kw):
+    """Etkin dildeki metni döndürür (bulunamazsa İngilizce, o da yoksa anahtarın kendisi)."""
+    metin = METINLER.get(DIL, {}).get(anahtar) or METINLER["en"].get(anahtar) or anahtar
+    return metin.format(**kw) if kw else metin
+
+
+def dili_ayarla(kod):
+    global DIL
+    if kod in METINLER:
+        DIL = kod
+
+
+def sistem_dili() -> str:
+    """Windows arayüz diline göre varsayılan dil: Türkçe ise "tr", değilse "en"."""
+    try:
+        import ctypes
+        if ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3FF == 0x1F:   # LANG_TURKISH
+            return "tr"
+        return "en"
+    except Exception:
+        pass
+    try:
+        import locale
+        yerel = locale.getlocale()[0] or os.environ.get("LANG", "")
+        return "tr" if str(yerel).lower().startswith("tr") else "en"
+    except Exception:
+        return "en"
+
+
+def kurulum_dili_oku():
+    """Kurulum programının yazdığı dil.txt dosyasını okur ("tr"/"en"); yoksa None.
+    Dosya uygulamanın yanındadır (örn. ...\\War Thunder Sim Assist\\dil.txt)."""
+    taban = (os.path.dirname(sys.executable) if getattr(sys, "frozen", False)
+             else os.path.dirname(os.path.abspath(__file__)))
+    try:
+        with open(os.path.join(taban, "dil.txt"), "r", encoding="utf-8-sig") as f:
+            ham = f.read().strip().lower()
+    except Exception:
+        return None
+    if not ham:
+        return None
+    # Inno Setup "turkish" yazar ("tu..."); "tr" da kabul edilir.
+    return "tr" if ham.startswith(("tu", "tr")) else "en"
+
+
+def dili_cozumle() -> str:
+    """Başlangıç dilini belirler ve ayarlara yazar.
+    Öncelik: (1) kurulumda seçilen dil (her yeni kurulum seçimi bir kez uygulanır),
+    (2) menüden seçilip kaydedilen dil, (3) Windows arayüz dili."""
+    ayar = ayar_yukle()
+    degisti = False
+    kurulum = kurulum_dili_oku()
+    if kurulum and kurulum != ayar.get("kurulum_dili"):
+        ayar["dil"] = kurulum
+        ayar["kurulum_dili"] = kurulum
+        degisti = True
+    if ayar.get("dil") not in ("tr", "en"):
+        ayar["dil"] = sistem_dili()
+        degisti = True
+    if degisti:
+        ayar_kaydet(ayar)
+    dili_ayarla(ayar["dil"])
+    return ayar["dil"]
 
 
 class SimAssist:
@@ -245,53 +406,79 @@ class SimAssist:
         m = tk.Menu(self.root, tearoff=0)
         self.menu = m
 
-        m.add_command(label="Başlat / Duraklat", command=self._bosluk)
-        m.add_command(label="Sıfırla", command=self.sifirla)
-        m.add_command(label="Periyot +1", command=lambda: self.periyot_ayarla(1))
-        m.add_command(label="Periyot -1", command=lambda: self.periyot_ayarla(-1))
+        m.add_command(label=t("menu.start_pause"), command=self._bosluk)
+        m.add_command(label=t("menu.reset"), command=self.sifirla)
+        m.add_command(label=t("menu.period_plus"), command=lambda: self.periyot_ayarla(1))
+        m.add_command(label=t("menu.period_minus"), command=lambda: self.periyot_ayarla(-1))
         m.add_separator()
 
         self.oto_var = tk.BooleanVar(value=bool(self.ayar["oto"]))
-        m.add_checkbutton(label="Doğuşta otomatik başlat", variable=self.oto_var,
+        m.add_checkbutton(label=t("menu.auto"), variable=self.oto_var,
                           command=self._oto_degisti)
 
         self.boyut_var = tk.StringVar(value=self.ayar["boyut"])
         boyut_menu = tk.Menu(m, tearoff=0)
         for ad in BOYUTLAR:
-            boyut_menu.add_radiobutton(label=ad, value=ad,
+            boyut_menu.add_radiobutton(label=t("size." + ad), value=ad,
                                        variable=self.boyut_var,
                                        command=self._boyut_degisti)
-        m.add_cascade(label="Boyut", menu=boyut_menu)
+        m.add_cascade(label=t("menu.size"), menu=boyut_menu)
 
         self.aralik_var = tk.IntVar(value=int(self.ayar["aralik_dk"]))
         aralik_menu = tk.Menu(m, tearoff=0)
         for dk in (5, 10, 15, 20, 30):
-            aralik_menu.add_radiobutton(label=f"{dk} dakika", value=dk,
+            aralik_menu.add_radiobutton(label=t("menu.minutes", dk=dk), value=dk,
                                         variable=self.aralik_var,
                                         command=self._aralik_degisti)
-        m.add_cascade(label="Periyot süresi", menu=aralik_menu)
+        m.add_cascade(label=t("menu.period_length"), menu=aralik_menu)
 
         self.alpha_var = tk.DoubleVar(value=float(self.ayar["alpha"]))
         alpha_menu = tk.Menu(m, tearoff=0)
         for yuzde in (100, 90, 70, 50):
-            alpha_menu.add_radiobutton(label=f"%{yuzde}", value=yuzde / 100,
+            alpha_menu.add_radiobutton(label=f"{yuzde}%", value=yuzde / 100,
                                        variable=self.alpha_var,
                                        command=self._alpha_degisti)
-        m.add_cascade(label="Genel şeffaflık", menu=alpha_menu)
+        m.add_cascade(label=t("menu.opacity"), menu=alpha_menu)
 
         self.zemin_var = tk.StringVar(value=self.ayar["arka_plan"])
         zemin_menu = tk.Menu(m, tearoff=0)
         for ad in ("Şeffaf", "Koyu"):
-            zemin_menu.add_radiobutton(label=ad, value=ad, variable=self.zemin_var,
+            zemin_menu.add_radiobutton(label=t("bg." + ad), value=ad, variable=self.zemin_var,
                                        command=self._zemin_degisti)
-        m.add_cascade(label="Arka plan", menu=zemin_menu)
+        m.add_cascade(label=t("menu.background"), menu=zemin_menu)
+
+        self.dil_var = tk.StringVar(value=DIL)
+        dil_menu = tk.Menu(m, tearoff=0)
+        for kod, ad in (("tr", "Türkçe"), ("en", "English")):
+            dil_menu.add_radiobutton(label=ad, value=kod, variable=self.dil_var,
+                                     command=self._dil_degisti)
+        m.add_cascade(label=t("menu.language"), menu=dil_menu)
 
         m.add_separator()
-        m.add_command(label="Veri klasörünü aç", command=self.veri_klasorunu_ac)
-        m.add_command(label="Telemetri bilgisini kaydet (sorun giderme)",
-                      command=self.telemetri_kaydet)
-        m.add_command(label="Hakkında", command=self.hakkinda)
-        m.add_command(label="Kapat", command=self._kapat)
+        m.add_command(label=t("menu.data_folder"), command=self.veri_klasorunu_ac)
+        m.add_command(label=t("menu.save_telemetry"), command=self.telemetri_kaydet)
+        m.add_command(label=t("menu.about"), command=self.hakkinda)
+        m.add_command(label=t("menu.quit"), command=self._kapat)
+
+    def _dil_degisti(self):
+        """Dili anında değiştirir: ayarı kaydeder ve menüyü yeni dilde yeniden kurar."""
+        kod = self.dil_var.get()
+        if kod not in METINLER:
+            return
+        dili_ayarla(kod)
+        self.ayar["dil"] = kod
+        ayar_kaydet(self.ayar)
+        eski = self.menu
+        self._menu_kur()
+        # Menü, kendi komutu çalışırken yok edilmesin: kısa süre sonra temizle
+        self.root.after(500, lambda: self._menu_temizle(eski))
+
+    @staticmethod
+    def _menu_temizle(menu):
+        try:
+            menu.destroy()
+        except Exception:
+            pass
 
     def veri_klasorunu_ac(self):
         try:
@@ -300,20 +487,15 @@ class SimAssist:
                 subprocess.Popen([explorer, os.path.normpath(VERI_KLASORU)],
                                  creationflags=0x08000000)   # CREATE_NO_WINDOW
             else:
-                messagebox.showinfo("Veri klasörü", VERI_KLASORU, parent=self.root)
+                messagebox.showinfo(t("dlg.data_folder.title"), VERI_KLASORU, parent=self.root)
         except Exception as e:
-            messagebox.showerror("Veri klasörü", f"Açılamadı: {e}", parent=self.root)
+            messagebox.showerror(t("dlg.data_folder.title"),
+                                 t("dlg.data_folder.fail", e=e), parent=self.root)
 
     def hakkinda(self):
         messagebox.showinfo(
-            "Hakkında",
-            f"{UYGULAMA_ADI} v{SURUM}\n\n"
-            "Simülatör maçları için periyot kronometresi.\n"
-            "Yalnızca oyunun yerel telemetri arayüzünü (localhost:8111) okur; "
-            "oyun belleğine veya dosyalarına dokunmaz ve hiçbir veri göndermez.\n\n"
-            "Resmî olmayan bir hayran aracıdır; Gaijin Entertainment ile "
-            "bağlantılı değildir.\n\n"
-            f"Ayar ve günlük klasörü:\n{VERI_KLASORU}",
+            t("dlg.about.title"),
+            t("dlg.about.body", name=UYGULAMA_ADI, version=SURUM, folder=VERI_KLASORU),
             parent=self.root)
 
     def _menu_goster(self, event):
@@ -646,9 +828,11 @@ class SimAssist:
         try:
             with open(yol, "w", encoding="utf-8") as f:
                 f.write("\n".join(satirlar))
-            messagebox.showinfo("Telemetri", f"Kaydedildi:\n{yol}", parent=self.root)
+            messagebox.showinfo(t("dlg.telemetry.title"),
+                                t("dlg.telemetry.saved", yol=yol), parent=self.root)
         except Exception as e:
-            messagebox.showerror("Telemetri", f"Kaydedilemedi: {e}", parent=self.root)
+            messagebox.showerror(t("dlg.telemetry.title"),
+                                 t("dlg.telemetry.fail", e=e), parent=self.root)
 
     def _telemetri_dongusu(self):
         """War Thunder'ın yerel arayüzünü okur (oyuna müdahale etmez)."""
@@ -865,15 +1049,12 @@ def tek_kopya_kilidi() -> bool:
 
 
 if __name__ == "__main__":
+    dili_cozumle()
     if not tek_kopya_kilidi():
         try:
             gizli = tk.Tk()
             gizli.withdraw()
-            messagebox.showinfo(
-                UYGULAMA_ADI,
-                "Program zaten çalışıyor.\n\nPencere oyunun veya başka bir pencerenin "
-                "arkasında ya da ekranın kenarında olabilir. Görünmüyorsa Görev "
-                "Yöneticisi'nden kapatıp yeniden açın.")
+            messagebox.showinfo(UYGULAMA_ADI, t("dlg.running.body"))
         except Exception:
             pass
         raise SystemExit(0)
@@ -895,9 +1076,9 @@ if __name__ == "__main__":
             gizli = tk.Tk()
             gizli.withdraw()
             messagebox.showerror(
-                "War Thunder Sim Assist açılamadı",
-                "Program bir hata nedeniyle açılamadı.\n\n"
-                + (f"Hata ayrıntısı şu dosyaya yazıldı:\n{yol}\n\n" if yol else "")
+                t("dlg.crash.title", name=UYGULAMA_ADI),
+                t("dlg.crash.body")
+                + (t("dlg.crash.file", yol=yol) if yol else "")
                 + metin[-600:])
         except Exception:
             pass
