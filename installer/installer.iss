@@ -23,6 +23,9 @@ UninstallDisplayIcon={app}\{#AppExe}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+; Kurulum başında dil (English / Türkçe) sorulur; seçim uygulamanın arayüz dili olur.
+ShowLanguageDialog=yes
+UsePreviousLanguage=no
 ArchitecturesInstallIn64BitMode=x64compatible
 ; Yönetici izni istemeden, kullanıcının kendi klasörüne kurulabilir.
 PrivilegesRequired=lowest
@@ -50,3 +53,15 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
+
+[UninstallDelete]
+Type: files; Name: "{app}\dil.txt"
+Type: dirifempty; Name: "{app}"
+
+[Code]
+{ Kurulum dilini (english / turkish) uygulamanın okuyacağı dil.txt dosyasına yazar. }
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    SaveStringToFile(ExpandConstant('{app}\dil.txt'), ActiveLanguage, False);
+end;
