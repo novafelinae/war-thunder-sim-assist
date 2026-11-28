@@ -42,15 +42,6 @@ Tip: in the transparent mode clicks on empty space pass through to the game, so 
 ### How it works / is it safe?
 The program only reads the **local telemetry web interface that War Thunder itself provides** at `http://localhost:8111` (the same data community tools like map viewers use). It does **not** read or modify the game's memory or files, does not inject anything, and does not send any data anywhere. Use at your own risk; this is an unofficial tool.
 
-### Settings & logs
-Stored in `%LOCALAPPDATA%\WarThunderSimAssist` (right-click → *Open data folder*). If the timer behaves strangely, right-click → *Save telemetry info* and attach `wt_telemetri_log.txt` to an issue.
-
-### Build from source
-```bat
-build.bat
-```
-Needs Python 3.8+ with tkinter. You can also just run `python src/warthunder_sim_assist.py` (no extra packages). To publish a release: update `SURUM` in the source, then push a tag such as `v1.0.1` – GitHub Actions builds the installer and the zip and attaches them to a Release.
-
 ### License
 MIT – see [LICENSE](LICENSE).
 
@@ -82,12 +73,6 @@ MIT – see [LICENSE](LICENSE).
 
 ### Nasıl çalışır / güvenli mi?
 Program yalnızca War Thunder'ın **kendi sunduğu yerel telemetri arayüzünü** (`http://localhost:8111`) okur; harita araçları gibi topluluk programlarının kullandığı aynı veridir. Oyunun belleğini veya dosyalarını **okumaz, değiştirmez**, hiçbir şey enjekte etmez ve hiçbir yere veri göndermez. Resmî olmayan bir araçtır, kullanım sorumluluğu size aittir.
-
-### Ayarlar ve günlükler
-`%LOCALAPPDATA%\WarThunderSimAssist` klasöründe tutulur (sağ tık → *Veri klasörünü aç*). Sayaç beklenmedik davranırsa sağ tık → *Telemetri bilgisini kaydet* ile oluşan `wt_telemetri_log.txt` dosyasını bir issue'ya ekleyin.
-
-### Kaynaktan derleme
-`build.bat` çalıştırın (Python 3.8+ ve tkinter gerekir). Ya da doğrudan `python src/warthunder_sim_assist.py` ile çalıştırabilirsiniz (ek paket yok). Sürüm yayınlamak için koddaki `SURUM` değerini güncelleyin, sonra `v1.0.1` gibi bir etiket gönderin; GitHub Actions kurulum dosyasını ve zip'i derleyip Release'e ekler.
 
 ### Lisans
 MIT – bkz. [LICENSE](LICENSE).
